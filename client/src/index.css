@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================
+   TRAVELOOP — Global Styles (Design.md)
+   ========================================= */
+
+:root {
+  --color-matte-black: #0F1115;
+  --color-charcoal: #171A20;
+  --color-dark-gray: #20242B;
+  --color-fog: #B8BDC7;
+  --color-off-white: #F5F7FA;
+  --color-soft-blue: #6EA8FE;
+  --color-warm-beige: #D9C3A5;
+  --border-subtle: rgba(184, 189, 199, 0.12);
+  --border-hover: rgba(184, 189, 199, 0.25);
+  --glass-bg: rgba(23, 26, 32, 0.75);
+  --font-display: 'Inter Tight', 'Satoshi', 'General Sans', sans-serif;
+  --font-body: 'Inter', 'Manrope', system-ui, sans-serif;
+}
+
+.light {
+  --color-matte-black: #F8F9FA;
+  --color-charcoal: #FFFFFF;
+  --color-dark-gray: #E9ECEF;
+  --color-fog: #495057;
+  --color-off-white: #212529;
+  --color-soft-blue: #0D6EFD;
+  --color-warm-beige: #856404;
+  --border-subtle: rgba(0, 0, 0, 0.1);
+  --border-hover: rgba(0, 0, 0, 0.2);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-matte-black);
+  color: var(--color-fog);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-charcoal);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(184, 189, 199, 0.2);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(184, 189, 199, 0.35);
+}
+
+/* Text selection */
+::selection {
+  background: rgba(110, 168, 254, 0.25);
+  color: #fff;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid rgba(110, 168, 254, 0.5);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Headings use display font */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-off-white);
+}
+
+/* Utility: glass card */
+.glass-card {
+  background: rgba(23, 26, 32, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(184, 189, 199, 0.1);
+  border-radius: 16px; /* Match card radius */
+}
+
+/* Utility: cinematic overlay */
+.cinematic-overlay {
+  background: linear-gradient(180deg,
+    rgba(15, 17, 21, 0) 0%,
+    rgba(15, 17, 21, 0.7) 60%,
+    rgba(15, 17, 21, 0.95) 100%
+  );
+}
+
+/* Input base resets */
+input, textarea, select {
+  font-family: var(--font-body);
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+}
+
+/* Remove number input arrows */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+/* Transition defaults */
+a, button {
+  transition: all 0.2s ease;
+}
+
+/* Page wrapper */
+.page {
+  min-height: 100vh;
+  background-color: var(--color-matte-black);
+}
+
+/* Horizontal scrollbar hide utility */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
