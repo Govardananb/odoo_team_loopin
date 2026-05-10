@@ -14,6 +14,7 @@ import { Plus, GripVertical, Trash2, ArrowLeft, Search, Check, MapPin } from 'lu
 import { useTravel } from '../context/TravelContext'
 import PageTransition from '../components/PageTransition'
 import { slideDown, fadeIn } from '../lib/animations'
+import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api'
 
 function SortableStop({ stop, onDelete }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id })
@@ -67,6 +68,11 @@ export default function ItineraryBuilderPage() {
   const [searchResults, setSearchResults] = useState([])
   const [activeDay, setActiveDay] = useState(1)
 
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: "YOUR_GOOGLE_MAPS_API_KEY" // TODO: Replace with actual key
+  })
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -78,6 +84,17 @@ export default function ItineraryBuilderPage() {
     ? Math.ceil((new Date(trip.endDate) - new Date(trip.startDate)) / 86400000) + 1
     : days.length || 1
   const allDays = days.length > 0 ? days : Array.from({ length: tripDays }, (_, i) => i + 1)
+
+  const mapCenter = useMemo(() => {
+    if (stops.length > 0 && stops[0].lat && stops[0].lon) {
+      return { lat: parseFloat(stops[0].lat), lng: parseFloat(stops[0].lon) }
+    }
+    return { lat: 20.5937, lng: 78.9629 } // Default to India
+  }, [stops])
+
+  const polylinePath = useMemo(() => {
+    return stops.map(s => ({ lat: parseFloat(s.lat), lng: parseFloat(s.lon) })).filter(p => !isNaN(p.lat) && !isNaN(p.lng))
+  }, [stops])
 
   const handleDragEnd = useCallback((event) => {
     const { active, over } = event
@@ -147,14 +164,53 @@ export default function ItineraryBuilderPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Left Column: Thumbnail & Info */}
+            {/* Left Column: Map & Info */}
             <div className="space-y-4">
-              <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-border-subtle bg-charcoal">
-                <img
-                  src={trip.coverImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80'}
-                  alt={trip.name}
-                  className="w-full h-full object-cover"
-                />
+              <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-border-subtle bg-charcoal relative">
+                {isLoaded ? (
+                  <GoogleMap
+                    mapContainerStyle={{ width: '100%', height: '100%' }}
+                    center={mapCenter}
+                    zoom={5}
+                    options={{
+                      disableDefaultUI: true,
+                      styles: [
+                        { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
+                        { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
+                        { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
+                        { "elementType": "labels.text.stroke", "stylers": [{ "color": "#212121" }] },
+                        { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#757575" }] },
+                        { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
+                        { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#2c2c2c" }] },
+                        { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#8a8a8a" }] },
+                        { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] },
+                        { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#3d3d3d" }] }
+                      ]
+                    }}
+                  >
+                    {stops.map(s => (
+                      s.lat && s.lon && (
+                        <Marker
+                          key={s.id}
+                          position={{ lat: parseFloat(s.lat), lng: parseFloat(s.lon) }}
+                          title={s.placeName}
+                        />
+                      )
+                    ))}
+                    <Polyline
+                      path={polylinePath}
+                      options={{
+                        strokeColor: '#6EA8FE',
+                        strokeOpacity: 1.0,
+                        strokeWeight: 2,
+                      }}
+                    />
+                  </GoogleMap>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-fog-dim text-sm">
+                    Loading Map...
+                  </div>
+                )}
               </div>
               <div>
                 <h1 className="font-display text-2xl font-semibold text-off-white">{trip.name}</h1>
