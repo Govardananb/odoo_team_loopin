@@ -10,14 +10,20 @@ import {
   verticalListSortingStrategy, useSortable, arrayMove
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, MapPin, GripVertical, Trash2, Clock, ChevronDown, ChevronRight, ArrowLeft, Eye, DollarSign, Search } from 'lucide-react'
+import { Plus, MapPin, GripVertical, Trash2, Clock, ChevronDown, ChevronRight, ArrowLeft, Eye, DollarSign, Search, Check } from 'lucide-react'
 import { useTravel } from '../context/TravelContext'
 import { staggerItem, fadeIn } from '../lib/animations'
 import PageTransition from '../components/PageTransition'
 import Globe from 'react-globe.gl'
 
+const RECOMMENDATIONS = [
+  { name: 'Paris', lat: '48.8566', lon: '2.3522', display_name: 'Paris, France' },
+  { name: 'Tokyo', lat: '35.6895', lon: '139.6917', display_name: 'Tokyo, Japan' },
+  { name: 'New York', lat: '40.7128', lon: '-74.0060', display_name: 'New York, USA' },
+  { name: 'Sydney', lat: '-33.8688', lon: '151.2093', display_name: 'Sydney, Australia' },
+]
+
 function SortableStop({ stop, onDelete }) {
-  const [expanded, setExpanded] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id })
 
   const style = {
@@ -69,6 +75,8 @@ export default function ItineraryBuilderPage() {
   const [activeId, setActiveId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
+  const [selectedPlace, setSelectedPlace] = useState(null)
+  const [activeDay, setActiveDay] = useState(1)
   const [dimensions, setDimensions] = useState({ width: window.innerWidth * 0.66, height: window.innerHeight - 56 })
 
   useEffect(() => {
@@ -116,13 +124,23 @@ export default function ItineraryBuilderPage() {
 
   // Generate labels for stops
   const labelsData = useMemo(() => {
-    return stops.map(s => ({
+    const data = stops.map(s => ({
       ...s,
       lat: parseFloat(s.lat),
       lon: parseFloat(s.lon),
       name: s.placeName
     })).filter(s => s.lat && s.lon)
-  }, [stops])
+    
+    if (selectedPlace) {
+      data.push({
+        ...selectedPlace,
+        lat: parseFloat(selectedPlace.lat),
+        lon: parseFloat(selectedPlace.lon),
+        name: selectedPlace.display_name?.split(',')[0] || selectedPlace.name
+      })
+    }
+    return data
+  }, [stops, selectedPlace])
 
   const handleDragEnd = useCallback((event) => {
     const { active, over } = event
@@ -152,17 +170,8 @@ export default function ItineraryBuilderPage() {
     }
   }
 
-  const handleAddStop = (place, day) => {
-    const newStop = {
-      id: `stop-${Date.now()}`,
-      dayNumber: day,
-      placeName: place.display_name.split(',')[0],
-      lat: place.lat,
-      lon: place.lon,
-      notes: place.display_name.split(',').slice(1, 3).join(',')
-    }
-    const updatedStops = [...stops, newStop]
-    updateTrip(id, { stops: updatedStops })
+  const handleSelectPlace = (place) => {
+    setSelectedPlace(place)
     setSearchResults([])
     setSearchQuery('')
     
@@ -170,6 +179,22 @@ export default function ItineraryBuilderPage() {
     if (globeRef.current) {
       globeRef.current.pointOfView({ lat: parseFloat(place.lat), lng: parseFloat(place.lon), altitude: 1.5 }, 1000)
     }
+  }
+
+  const handleAddStop = () => {
+    if (!selectedPlace) return
+    
+    const newStop = {
+      id: `stop-${Date.now()}`,
+      dayNumber: activeDay,
+      placeName: selectedPlace.display_name?.split(',')[0] || selectedPlace.name,
+      lat: selectedPlace.lat,
+      lon: selectedPlace.lon,
+      notes: selectedPlace.display_name?.split(',').slice(1, 3).join(',') || ''
+    }
+    const updatedStops = [...stops, newStop]
+    updateTrip(id, { stops: updatedStops })
+    setSelectedPlace(null)
   }
 
   if (!trip) return (
@@ -182,7 +207,7 @@ export default function ItineraryBuilderPage() {
     <PageTransition>
       <div className="flex pt-[56px] h-[calc(100vh-56px)] overflow-hidden bg-matte-black">
         {/* Sidebar Timeline */}
-        <div className="w-96 h-full overflow-y-auto border-r border-border-subtle bg-charcoal p-6 flex flex-col gap-6">
+        <div className="w-96 h-full overflow-y-auto border-r border-border-subtle bg-charcoal p-6 flex flex-col gap-6 no-scrollbar">
           <div>
             <Link to="/dashboard" className="flex items-center gap-1.5 text-fog-dim hover:text-fog text-xs mb-3 transition-colors">
               <ArrowLeft size={12} />
@@ -191,6 +216,26 @@ export default function ItineraryBuilderPage() {
             <h1 className="font-display text-2xl font-semibold text-off-white">{trip.name}</h1>
             <p className="text-sm text-fog-dim mt-1">{trip.destination}</p>
           </div>
+
+          {/* Quick Adds */}
+          <div className="space-y-2">
+            <div className="text-xs text-fog-dim uppercase tracking-wider font-medium">Quick Adds</div>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              {RECOMMENDATIONS.map(place => (
+                <button
+                  key={place.name}
+                  onClick={() => handleSelectPlace(place)}
+                  className="px-3 py-1.5 bg-white/5 border border-border-subtle rounded-lg text-xs text-fog hover:text-off-white transition-all"
+                >
+                  {place.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <hr className="border-border-subtle" />
+
+          <div className="text-xs text-fog-dim uppercase tracking-wider font-medium">Select a day to add stops</div>
 
           <DndContext
             sensors={sensors}
@@ -202,10 +247,21 @@ export default function ItineraryBuilderPage() {
               <div className="space-y-6">
                 {allDays.map(day => {
                   const dayStops = stops.filter(s => s.dayNumber === day)
+                  const isActive = activeDay === day
+                  
                   return (
-                    <div key={day} className="space-y-3">
+                    <div
+                      key={day}
+                      onClick={() => setActiveDay(day)}
+                      className={`space-y-3 p-3 rounded-xl transition-all cursor-pointer ${
+                        isActive ? 'bg-white/5 border border-soft-blue/20' : 'border border-transparent hover:border-border-subtle'
+                      }`}
+                    >
                       <div className="flex justify-between items-center">
-                        <div className="font-display font-semibold text-white text-sm">Day {day}</div>
+                        <div className="flex items-center gap-2">
+                          <div className={`font-display font-semibold text-sm ${isActive ? 'text-soft-blue' : 'text-white'}`}>Day {day}</div>
+                          {isActive && <Check size={12} className="text-soft-blue" />}
+                        </div>
                         <span className="text-xs text-fog-dim">{dayStops.length} stops</span>
                       </div>
                       
@@ -231,7 +287,7 @@ export default function ItineraryBuilderPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search places to add to itinerary..."
+                placeholder="Search places to add..."
                 className="w-full bg-charcoal border border-border-subtle focus:border-soft-blue/50 rounded-xl pl-12 pr-4 py-3.5 text-off-white placeholder:text-fog-dim/40 transition-all duration-200"
               />
               <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-fog-dim" />
@@ -239,24 +295,14 @@ export default function ItineraryBuilderPage() {
             
             {/* Search Results */}
             {searchResults.length > 0 && (
-              <div className="mt-2 bg-charcoal border border-border-subtle rounded-xl overflow-hidden shadow-lg">
+              <div className="mt-2 bg-charcoal border border-border-subtle rounded-xl overflow-hidden shadow-lg max-h-60 overflow-y-auto no-scrollbar">
                 {searchResults.slice(0, 5).map(r => (
                   <div
                     key={r.place_id}
-                    className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm text-fog border-b border-border-subtle last:border-0 flex justify-between items-center"
+                    onClick={() => handleSelectPlace(r)}
+                    className="px-4 py-3 hover:bg-white/5 cursor-pointer text-sm text-fog border-b border-border-subtle last:border-0 truncate"
                   >
-                    <div className="truncate flex-1">{r.display_name}</div>
-                    <div className="flex gap-1 ml-2">
-                      {allDays.map(day => (
-                        <button
-                          key={day}
-                          onClick={() => handleAddStop(r, day)}
-                          className="px-2 py-1 bg-soft-blue/10 text-soft-blue rounded-md text-xs hover:bg-soft-blue/20"
-                        >
-                          D{day}
-                        </button>
-                      ))}
-                    </div>
+                    {r.display_name}
                   </div>
                 ))}
               </div>
@@ -268,6 +314,8 @@ export default function ItineraryBuilderPage() {
             width={dimensions.width}
             height={dimensions.height}
             globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+            bumpScale={0.003}
             backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
             arcsData={arcsData}
             arcColor="color"
@@ -278,10 +326,42 @@ export default function ItineraryBuilderPage() {
             labelText={d => d.name}
             labelLat={d => d.lat}
             labelLng={d => d.lon}
-            labelColor={() => '#6EA8FE'}
+            labelColor={d => d.id === selectedPlace?.place_id ? '#D9C3A5' : '#6EA8FE'}
             labelSize={1.5}
             labelDotRadius={0.5}
           />
+
+          {/* Floating Card for Selected Place */}
+          {selectedPlace && (
+            <div className="absolute bottom-6 left-6 z-10 w-full max-w-sm glass-card p-6 space-y-4">
+              <div>
+                <h3 className="font-display text-xl font-semibold text-off-white">
+                  {selectedPlace.display_name?.split(',')[0] || selectedPlace.name}
+                </h3>
+                <p className="text-sm text-fog-dim mt-1">
+                  {selectedPlace.display_name?.split(',').slice(1, 3).join(',') || ''}
+                </p>
+              </div>
+              
+              <div className="flex justify-between items-center text-sm text-fog">
+                <span>Adding to **Day {activeDay}**</span>
+                <button
+                  onClick={() => setSelectedPlace(null)}
+                  className="text-xs text-fog-dim hover:text-off-white"
+                >
+                  Cancel
+                </button>
+              </div>
+              
+              <button
+                onClick={handleAddStop}
+                className="w-full flex items-center justify-center gap-2 bg-soft-blue text-matte-black font-semibold text-sm py-3 rounded-xl hover:bg-soft-blue/90 transition-all"
+              >
+                <Plus size={16} />
+                Add to Itinerary
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </PageTransition>
