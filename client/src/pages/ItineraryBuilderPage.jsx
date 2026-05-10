@@ -17,10 +17,11 @@ import PageTransition from '../components/PageTransition'
 import Globe from 'react-globe.gl'
 
 const RECOMMENDATIONS = [
-  { name: 'Paris', lat: '48.8566', lon: '2.3522', display_name: 'Paris, France' },
-  { name: 'Tokyo', lat: '35.6895', lon: '139.6917', display_name: 'Tokyo, Japan' },
-  { name: 'New York', lat: '40.7128', lon: '-74.0060', display_name: 'New York, USA' },
-  { name: 'Sydney', lat: '-33.8688', lon: '151.2093', display_name: 'Sydney, Australia' },
+  { name: 'Chennai', lat: '13.0827', lon: '80.2707', display_name: 'Chennai, Tamil Nadu' },
+  { name: 'Pondicherry', lat: '11.9416', lon: '79.8083', display_name: 'Puducherry, India' },
+  { name: 'Mahabalipuram', lat: '12.6269', lon: '80.1927', display_name: 'Mahabalipuram, Tamil Nadu' },
+  { name: 'Delhi', lat: '28.6139', lon: '77.2090', display_name: 'Delhi, India' },
+  { name: 'Jaipur', lat: '26.9124', lon: '75.7873', display_name: 'Jaipur, Rajasthan' },
 ]
 
 function SortableStop({ stop, onDelete }) {
