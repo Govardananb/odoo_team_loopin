@@ -14,7 +14,16 @@ import { Plus, GripVertical, Trash2, ArrowLeft, Search, Check, MapPin } from 'lu
 import { useTravel } from '../context/TravelContext'
 import PageTransition from '../components/PageTransition'
 import { slideDown, fadeIn } from '../lib/animations'
-import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api'
+import { MapContainer, TileLayer, Marker, Polyline, Popup } from 'react-leaflet'
+import L from 'leaflet'
+
+// Fix for default marker icon in React Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+});
 
 function SortableStop({ stop, onDelete }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stop.id })
@@ -68,11 +77,6 @@ export default function ItineraryBuilderPage() {
   const [searchResults, setSearchResults] = useState([])
   const [activeDay, setActiveDay] = useState(1)
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: "YOUR_GOOGLE_MAPS_API_KEY" // TODO: Replace with actual key
-  })
-
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -87,13 +91,13 @@ export default function ItineraryBuilderPage() {
 
   const mapCenter = useMemo(() => {
     if (stops.length > 0 && stops[0].lat && stops[0].lon) {
-      return { lat: parseFloat(stops[0].lat), lng: parseFloat(stops[0].lon) }
+      return [parseFloat(stops[0].lat), parseFloat(stops[0].lon)]
     }
-    return { lat: 20.5937, lng: 78.9629 } // Default to India
+    return [20.5937, 78.9629] // Default to India
   }, [stops])
 
   const polylinePath = useMemo(() => {
-    return stops.map(s => ({ lat: parseFloat(s.lat), lng: parseFloat(s.lon) })).filter(p => !isNaN(p.lat) && !isNaN(p.lng))
+    return stops.map(s => [parseFloat(s.lat), parseFloat(s.lon)]).filter(p => !isNaN(p[0]) && !isNaN(p[1]))
   }, [stops])
 
   const handleDragEnd = useCallback((event) => {
@@ -166,51 +170,23 @@ export default function ItineraryBuilderPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Left Column: Map & Info */}
             <div className="space-y-4">
-              <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-border-subtle bg-charcoal relative">
-                {isLoaded ? (
-                  <GoogleMap
-                    mapContainerStyle={{ width: '100%', height: '100%' }}
-                    center={mapCenter}
-                    zoom={5}
-                    options={{
-                      disableDefaultUI: true,
-                      styles: [
-                        { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
-                        { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
-                        { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
-                        { "elementType": "labels.text.stroke", "stylers": [{ "color": "#212121" }] },
-                        { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#757575" }] },
-                        { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
-                        { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#2c2c2c" }] },
-                        { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#8a8a8a" }] },
-                        { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] },
-                        { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#3d3d3d" }] }
-                      ]
-                    }}
-                  >
-                    {stops.map(s => (
-                      s.lat && s.lon && (
-                        <Marker
-                          key={s.id}
-                          position={{ lat: parseFloat(s.lat), lng: parseFloat(s.lon) }}
-                          title={s.placeName}
-                        />
-                      )
-                    ))}
-                    <Polyline
-                      path={polylinePath}
-                      options={{
-                        strokeColor: '#6EA8FE',
-                        strokeOpacity: 1.0,
-                        strokeWeight: 2,
-                      }}
-                    />
-                  </GoogleMap>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-fog-dim text-sm">
-                    Loading Map...
-                  </div>
-                )}
+              <div className="aspect-[4/3] rounded-2xl overflow-hidden border border-border-subtle bg-charcoal relative z-0">
+                <MapContainer center={mapCenter} zoom={5} style={{ width: '100%', height: '100%' }} zoomControl={false}>
+                  <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                  />
+                  {stops.map(s => (
+                    s.lat && s.lon && (
+                      <Marker key={s.id} position={[parseFloat(s.lat), parseFloat(s.lon)]}>
+                        <Popup>
+                          <div className="text-xs font-semibold">{s.placeName}</div>
+                        </Popup>
+                      </Marker>
+                    )
+                  ))}
+                  <Polyline positions={polylinePath} color="#6EA8FE" weight={2} />
+                </MapContainer>
               </div>
               <div>
                 <h1 className="font-display text-2xl font-semibold text-off-white">{trip.name}</h1>
@@ -313,5 +289,3 @@ export default function ItineraryBuilderPage() {
         </div>
       </div>
     </PageTransition>
-  )
-}
