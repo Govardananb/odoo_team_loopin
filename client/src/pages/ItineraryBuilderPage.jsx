@@ -79,6 +79,48 @@ export default function ItineraryBuilderPage() {
   const [selectedPlace, setSelectedPlace] = useState(null)
   const [activeDay, setActiveDay] = useState(1)
   const [dimensions, setDimensions] = useState({ width: window.innerWidth * 0.66, height: window.innerHeight - 56 })
+  const [fromLocation, setFromLocation] = useState('')
+  const [toLocation, setToLocation] = useState('')
+
+  const handlePlanRoute = async () => {
+    if (!fromLocation || !toLocation) return
+    try {
+      const fromRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fromLocation)}`)
+      const fromData = await fromRes.json()
+      
+      const toRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(toLocation)}`)
+      const toData = await toRes.json()
+      
+      if (fromData[0] && toData[0]) {
+        const fromStop = {
+          id: `stop-${Date.now()}-from`,
+          dayNumber: 1,
+          placeName: fromData[0].display_name.split(',')[0],
+          lat: fromData[0].lat,
+          lon: fromData[0].lon,
+          notes: 'Starting Point'
+        }
+        const toStop = {
+          id: `stop-${Date.now()}-to`,
+          dayNumber: tripDays,
+          placeName: toData[0].display_name.split(',')[0],
+          lat: toData[0].lat,
+          lon: toData[0].lon,
+          notes: 'Destination'
+        }
+        
+        updateTrip(id, { stops: [fromStop, ...stops, toStop] })
+        
+        if (globeRef.current) {
+          globeRef.current.pointOfView({ lat: parseFloat(fromData[0].lat), lng: parseFloat(fromData[0].lon), altitude: 1.5 }, 1000)
+        }
+        setFromLocation('')
+        setToLocation('')
+      }
+    } catch (err) {
+      console.error('Failed to plan route:', err)
+    }
+  }
 
   useEffect(() => {
     const handleResize = () => {
@@ -210,13 +252,50 @@ export default function ItineraryBuilderPage() {
         {/* Sidebar Timeline */}
         <div className="w-96 h-full overflow-y-auto border-r border-border-subtle bg-charcoal p-6 flex flex-col gap-6 no-scrollbar">
           <div>
-            <Link to="/dashboard" className="flex items-center gap-1.5 text-fog-dim hover:text-fog text-xs mb-3 transition-colors">
-              <ArrowLeft size={12} />
-              Dashboard
-            </Link>
+            <div className="flex justify-between items-center mb-3">
+              <Link to="/dashboard" className="flex items-center gap-1.5 text-fog-dim hover:text-fog text-xs transition-colors">
+                <ArrowLeft size={12} />
+                Dashboard
+              </Link>
+              <button
+                onClick={() => alert('Itinerary saved!')}
+                className="text-xs text-soft-blue hover:text-soft-blue/80 font-medium"
+              >
+                Save
+              </button>
+            </div>
             <h1 className="font-display text-2xl font-semibold text-off-white">{trip.name}</h1>
             <p className="text-sm text-fog-dim mt-1">{trip.destination}</p>
           </div>
+
+          {/* Route Planner (From/To) */}
+          <div className="space-y-3">
+            <div className="text-xs text-fog-dim uppercase tracking-wider font-medium">Route Planner</div>
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={fromLocation}
+                onChange={(e) => setFromLocation(e.target.value)}
+                placeholder="From (e.g. Chennai)"
+                className="w-full bg-white/5 border border-border-subtle focus:border-soft-blue/40 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-fog-dim/40"
+              />
+              <input
+                type="text"
+                value={toLocation}
+                onChange={(e) => setToLocation(e.target.value)}
+                placeholder="To (e.g. Pondicherry)"
+                className="w-full bg-white/5 border border-border-subtle focus:border-soft-blue/40 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-fog-dim/40"
+              />
+              <button
+                onClick={handlePlanRoute}
+                className="w-full bg-soft-blue text-matte-black font-semibold text-xs py-2.5 rounded-xl hover:bg-soft-blue/90 transition-all"
+              >
+                Plan Route
+              </button>
+            </div>
+          </div>
+
+          <hr className="border-border-subtle" />
 
           {/* Quick Adds */}
           <div className="space-y-2">
